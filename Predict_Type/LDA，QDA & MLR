@@ -1,0 +1,84 @@
+library(readr)
+library(leaps)
+library(ISLR)
+library(klaR)
+library(caret)
+library(nnet)
+Pokemon = read_csv("C:/Users/cit-labs/Desktop/Pokemon.csv")
+
+Pokemon$'Type 2'[is.na(Pokemon$'Type 2')]="null"
+
+# Split the Pokemon dataset into 75% training and 25% testing rondomly
+# set.seed(1) to make the result reproductible
+set.seed(1)
+train_size = floor(0.75 * nrow(Pokemon))
+train_ind = sample(seq_len(nrow(Pokemon)), size = train_size)
+Type1 = as.factor(as.numeric(as.factor(Pokemon$'Type 1')))
+Type2 = as.factor(as.numeric(as.factor(Pokemon$'Type 2')))
+Pokemon_new = data.frame(Pokemon,Type1,Type2)
+train = Pokemon_new[train_ind, ]
+test = Pokemon_new[-train_ind, ]
+
+#LDA
+## type 1
+set.seed(1)
+lda1_train = subset(train,select=c(6:14))
+lda1_test = subset(test,select=c(6:14))
+lda_fits_type1 = lda(Type1~.,data=lda1_train,family=binomial)
+predict_lda_type1 = predict(lda_fits_type1,lda1_test)
+TE_lda_type1 = mean(predict_lda_type1$class != lda1_test$Type1)
+TE_lda_type1
+Bestvariable_lda_type1 = stepclass(lda1_train[,1:8],lda1_train[,9],method="lda",improvement = 0.001)
+
+## type 2
+set.seed(1)
+lda2_train = subset(train,select=c(6:15))
+lda2_test = subset(test,select=c(6:15))
+lda_fits_type2 = lda(Type2~.,data=lda2_train,family=binomial)
+predict_lda_type2 = predict(lda_fits_type2,lda2_test)
+TE_lda_type2 = mean(predict_lda_type2$class != lda2_test$Type2)
+TE_lda_type2
+Generation = as.factor(Pokemon$Generation)
+Pokemon_lda_type2 = data.frame(Pokemon[,-c(1:5,12)],Generation,Type1,Type2)
+Bestvariable_lda_type2 = stepclass(Pokemon_lda_type2[,1:9],Pokemon_lda_type2[,10],method="lda",improvement = 0.001)
+
+#QDA
+##type 1
+set.seed(1)
+Pokemon_qda_type1 = data.frame(Pokemon[,-c(1:5,12)],Generation,Type1)
+Bestvariable_qda_type1 = stepclass(Pokemon_qda_type1[,1:8],Pokemon_qda_type1[,9],method="qda",improvement = 0.001)
+
+
+## type 2
+set.seed(1)
+Pokemon_qda_type2 = data.frame(Pokemon[,-c(1:5,12)],Generation,Type1,Type2)
+Bestvariable_qda_type2 = stepclass(Pokemon_qda_type2[,1:9],Pokemon_qda_type2[,10],method="qda",improvement = 0.001)
+
+
+#Multinomial Regression
+Pokemon_MR = data.frame(Pokemon[,1:2],Type1,Type2,Pokemon[,5:13])
+##type 1
+MR_fits_type1 = multinom(Type1~HP+Attack+Defense+Sp..Atk+Sp..Def+Speed+Generation, data = Pokemon_MR)
+MR_fits_type1
+summary(MR_fits_type1)
+Bestvariable_MR_type1 = varImp(MR_fits_type1)
+Bestvariable_MR_type1$Variables = row.names(Bestvariable_MR_type1)
+print(Bestvariable_MR_type1)
+funcact = trainControl(method = "cv", number = 5)
+CV_MR_Type1=train(Type1~HP+Attack+Defense+Sp..Atk+Sp..Def+Speed+Generation+Legendary,data=Pokemon_MR,method="multinom",trControl=funcact)
+summary(CV_MR_Type1)
+
+##type 2
+MR_fits_type2 = multinom(Type2~Type1+HP+Attack+Defense+Sp..Atk+Sp..Def+Speed+Generation, data = Pokemon_MR)
+MR_fits_type2
+summary(MR_fits_type2)
+Bestvariable_MR_type2 = varImp(MR_fits_type2)
+Bestvariable_MR_type2$Variables = row.names(Bestvariable_MR_type2)
+print(Bestvariable_MR_type2)
+CV_MR_Type2=train(Type.1~HP+Attack+Defense+Sp..Atk+Sp..Def+Speed+Generation+Legendary,data=Pokemon_MR,method="multinom",trcontrol=funcact)
+print(CV_MR_Type2)
+
+
+
+
+
